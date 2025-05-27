@@ -1,0 +1,39 @@
+This file includes paths to all config/system files that is used by different applications
+NGINX:
+# webserver config
+sudo nano /etc/nginx/sites-available/flask_app
+cat /etc/nginx/sites-available/flask_app
+
+Status:
+sudo systemctl status nginx
+
+Restart
+sudo systemctl restart nginx
+
+GUNICORN:
+# gunicorn config
+sudo nano /etc/systemd/system/gunicorn.service
+cat /etc/systemd/system/gunicorn.service
+
+Status:
+sudo systemctl status gunicorn
+
+Restart
+sudo systemctl restart gunicorn
+
+Log:
+journalctl -u gunicorn -f
+
+Flask:
+# flask file that runs flask app
+sudo nano /home/pi/flask_app/server.py
+
+VENV:
+cd til lokasjon og kjør det under:
+source venv/bin/activate
+
+Testing:
+curl https://sayver.org/api/status-pir
+curl https://sayver.org/api/run-pir
+curl https://sayver.org/api/stop-pir
+curl https://sayver.org/api/send-notifications

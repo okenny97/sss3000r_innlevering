@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            display: none;
+        }
+        .activity-image, .activity-video {
+            width: 150px;
+            height: 150px;
+            object-fit: cover;       
+            border-radius: 5px;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+    
+        .activity-image:hover, .activity-video:hover {
+            transform: scale(1.05);  
+        }
+    
+        .d-flex.flex-wrap.gap-2 > div {
+            flex: 0 0 auto;            
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="dashboard.html">Alarm System</a>
+            <div class="d-flex">
+                <a href="innstillinger.html" class="btn btn-secondary me-2" id="profile-settings">Innstillinger</a>
+                <button class="btn btn-danger" id="logout">Logg ut</button>
+            </div>
+        </div>
+    </nav>    
+
+    <div class="container py-5">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>Dashboard</h1>
+            <div>
+                <button class="btn btn-outline-dark ms-2" id="live-view-btn" data-bs-toggle="modal" data-bs-target="#liveViewModal">Live View Kamera</button>
+                <button class="btn btn-success" id="toggle-alarm">Slå på alarm</button>
+            </div>
+        </div>
+
+        <p id="alarm-status" class="text-muted">Alarmen er <span id="alarm-status-word" class="text-danger">av</span></p>
+
+        <!-- Temperaturboks -->
+        <div class="card mb-4" id="temp-box">
+            <div class="card-body">
+                <h5 class="card-title">Temperatur</h5>
+                <div id="temperature-display">Loading temperature...</div>
+            </div>
+        </div>
+
+        <!-- Aktiviteter per dag -->
+        <h3>Aktiviteter per dag</h3>
+        <div id="activity-folders" class="list-group"></div>
+
+        <!-- Modal for å vise aktiviteter fra valgt dag -->
+        <div class="modal fade" id="dayActivitiesModal" tabindex="-1" aria-labelledby="dayActivitiesLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="dayActivitiesLabel">Aktiviteter</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body" id="day-activities-content">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Live View Modal -->
+    <div class="modal fade" id="liveViewModal" tabindex="-1" aria-labelledby="liveViewLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content bg-dark text-white">
+            <div class="modal-header">
+            <h5 class="modal-title" id="liveViewLabel">Live Kamera</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Lukk"></button>
+            </div>
+            <div class="modal-body text-center">
+            <img src="/api/live-camera-feed" alt="Live kamera" class="img-fluid" style="max-height: 70vh; border-radius: 8px;">
+            <p class="mt-2 text-muted small">Live stream fra kamera (oppdateres kontinuerlig)</p>
+            </div>
+        </div>
+        </div>
+    </div>
+  
+
+    <!-- Scripts -->
+    <script src="app.js"></script>
+    <script src="scripts/dashboard.js"></script>
+    <script src="scripts/temperature.js"></script>
+    <script src="scripts/alarm.js"></script>
+    <script src="scripts/live-view.js"></script>
+    <script src="scripts/logout.js"></script>
+    <script src="scripts/auth-check.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        async function listFolders() {
+    try {
+        const response = await fetch('/media/pictures/');
+        const text = await response.text();
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(text, 'text/html');
+        const links = Array.from(doc.querySelectorAll('a'));
+
+        const folders = links
+            .map(link => link.getAttribute('href'))
+            .filter(href => href.endsWith('/')) 
+            .map(href => href.replace('/', '')) 
+            .filter(folder => folder.match(/^\d{4}-\d{2}-\d{2}$/)); 
+
+        renderActivityFolders(folders);
+    } catch (error) {
+        console.error('Klarte ikke hente mapper:', error);
+    }
+}
+
+function renderActivityFolders(folders) {
+    const activityFolders = document.getElementById('activity-folders');
+    activityFolders.innerHTML = '';
+
+    if (folders.length === 0) {
+        activityFolders.innerHTML = "<p>Ingen aktiviteter ennå.</p>";
+        return;
+    }
+
+    folders.sort().reverse();
+
+    folders.forEach(date => {
+        const button = document.createElement('button');
+        button.className = "list-group-item list-group-item-action";
+        button.textContent = date;
+        button.addEventListener('click', () => loadDayImages(date));
+        activityFolders.appendChild(button);
+    });
+}
+
+async function loadDayImages(date) {
+    try {
+        const response = await fetch(`/media/pictures/${date}/`);
+        const text = await response.text();
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(text, 'text/html');
+        const links = Array.from(doc.querySelectorAll('a'));
+
+        const files = links
+            .map(link => link.getAttribute('href'))
+            .filter(file => file.match(/\.(jpg|jpeg|png|mp4|mov)$/i)); 
+
+        const container = document.getElementById('day-activities-content');
+        container.innerHTML = `<h5>Aktiviteter for ${date}</h5><hr>`;
+
+        if (files.length === 0) {
+            container.innerHTML += "<p>Ingen filer for denne dagen.</p>";
+        } else {
+            const grid = document.createElement('div');
+            grid.className = 'd-flex flex-wrap gap-2'; 
+
+            files.forEach(file => {
+                const filePath = `/media/pictures/${date}/${file}`;
+                const fileExtension = file.split('.').pop().toLowerCase();
+
+                const item = document.createElement('div');
+                item.className = 'p-1';
+
+                if (["jpg", "jpeg", "png"].includes(fileExtension)) {
+                    item.innerHTML = `
+                        <img src="${filePath}" class="img-fluid activity-image" onclick='viewImage("${filePath}")'>
+                    `;
+                } else if (["mp4", "mov"].includes(fileExtension)) {
+                    item.innerHTML = `
+                        <video src="${filePath}" class="activity-video" controls></video>
+                    `;
+                }
+
+                grid.appendChild(item);
+            });
+
+            container.appendChild(grid);
+        }
+
+        const modal = new bootstrap.Modal(document.getElementById('dayActivitiesModal'));
+        modal.show();
+    } catch (error) {
+        console.error('Klarte ikke hente filer for dag:', error);
+    }
+}
+
+function viewImage(imageSrc) {
+    window.open(imageSrc, '_blank');
+}
+
+document.addEventListener('DOMContentLoaded', listFolders);
+
+    </script>
+</body>
+<!-- Footer med støttede plattformer -->
+<footer class="bg-dark text-light small mt-5 py-3">
+    <div class="container text-center">
+        <div class="mb-2">
+            <strong>Supported OS:</strong>
+            <img src="https://img.icons8.com/color/24/000000/android-os.png" alt="Android" class="mx-1" title="Android" />
+            <img src="https://img.icons8.com/color/24/000000/windows-10.png" alt="Windows" class="mx-1" title="Windows" />
+            <span class="text-muted d-block mt-1">Støtte for flere plattformer kommer etter testing</span>
+        </div>
+        <div class="mb-2">
+            <strong>Supported Browsers:</strong>
+            <img src="https://img.icons8.com/color/24/000000/chrome.png" alt="Chrome" class="mx-1" title="Chrome" />
+            <img src="https://img.icons8.com/color/24/000000/firefox.png" alt="Firefox" class="mx-1" title="Firefox" />
+        </div>
+        <div>
+            <em>Kommer snart: iOS, macOS, iPadOS</em>
+        </div>
+    </div>
+</footer>
+</html>

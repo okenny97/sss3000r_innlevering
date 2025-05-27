@@ -1,0 +1,6 @@
+{
+  "alarmMode": "bilde",
+  "emailNotifications": false,
+  "appNotifications": true,
+  "tempUpdateInterval": "60000"
+}

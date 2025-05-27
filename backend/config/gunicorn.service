@@ -1,0 +1,19 @@
+[Unit]
+Description=Gunicorn daemon
+Requires=gunicorn.socket
+After=network.target
+
+[Service]
+Type=notify
+User=pi
+Group=www-data
+WorkingDirectory=/home/pi/flask_app
+Environment="GUNICORN_CMD_ARGS=--workers 3 --bind unix:/run/gunicorn.sock --timeout 3600"
+ExecStart=/home/pi/flask_app/venv/bin/gunicorn server:app
+ExecReload=/bin/kill -s HUP $MAINPID
+KillMode=mixed
+TimeoutStopSec=5
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
